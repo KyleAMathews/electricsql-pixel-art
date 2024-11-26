@@ -1,0 +1,30 @@
+version: "3.3"
+name: "electric_example-${PROJECT_NAME:-default}"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: electric
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - 54321:5432
+    volumes:
+      - ./migrations:/docker-entrypoint-initdb.d
+    tmpfs:
+      - /var/lib/postgresql/data
+      - /tmp
+    command: >
+      postgres
+      -c listen_addresses='*'
+      -c wal_level=logical
+
+  backend:
+    image: electricsql/electric:canary
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/electric?sslmode=disable
+    ports:
+      - 3000:3000
+    depends_on:
+      - postgres

@@ -1,0 +1,14 @@
+{
+  "tables": {
+    "pixels": {
+      "indexes": {
+        "pixels_last_updated_idx": ["last_updated"]
+      }
+    },
+    "users": {
+      "indexes": {
+        "users_pkey": ["id"]
+      }
+    }
+  }
+}
