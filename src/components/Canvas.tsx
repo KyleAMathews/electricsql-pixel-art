@@ -254,7 +254,7 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
       y,
       color: selectedColor,
       user_id: userId,
-      last_updated: new Date(),
+      last_updated: new Date().toISOString(),
     };
 
     try {

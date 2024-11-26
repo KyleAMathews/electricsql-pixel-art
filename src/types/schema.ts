@@ -13,7 +13,7 @@ export type Pixel = Row & {
   y: number;
   color: string;
   user_id: string;
-  last_updated: Date;
+  last_updated: string;
 }
 
 export interface DatabaseSchema {
