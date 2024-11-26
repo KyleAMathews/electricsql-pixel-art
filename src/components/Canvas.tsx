@@ -46,6 +46,7 @@ async function updatePixel(pixel: Partial<Pixel>) {
 
 export function Canvas({ userId, selectedColor }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
@@ -59,6 +60,79 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
   
   // Combine database pixels with pending pixels
   const allPixels = [...pixels, ...pendingPixels]
+
+  // Handle canvas resize
+  useEffect(() => {
+    const updateCanvasSize = () => {
+      const container = containerRef.current
+      const canvas = canvasRef.current
+      if (!container || !canvas) return
+
+      // Get the container's dimensions
+      const { width, height } = container.getBoundingClientRect()
+      
+      // Set both canvas dimensions and style
+      canvas.width = width
+      canvas.height = height
+
+      // Trigger a redraw
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        // Clear canvas with a grid background
+        ctx.fillStyle = '#FFFFFF'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+        // Draw grid
+        ctx.strokeStyle = '#EEEEEE'
+        for (let x = 0; x < canvas.width; x += PIXEL_SIZE * zoom) {
+          ctx.beginPath()
+          ctx.moveTo(x, 0)
+          ctx.lineTo(x, canvas.height)
+          ctx.stroke()
+        }
+        for (let y = 0; y < canvas.height; y += PIXEL_SIZE * zoom) {
+          ctx.beginPath()
+          ctx.moveTo(0, y)
+          ctx.lineTo(canvas.width, y)
+          ctx.stroke()
+        }
+
+        // Redraw pixels
+        allPixels.forEach((pixel: Pixel) => {
+          const startX = Math.floor(offset.x / (PIXEL_SIZE * zoom))
+          const startY = Math.floor(offset.y / (PIXEL_SIZE * zoom))
+          const endX = startX + Math.ceil(canvas.width / (PIXEL_SIZE * zoom))
+          const endY = startY + Math.ceil(canvas.height / (PIXEL_SIZE * zoom))
+
+          if (pixel.x >= startX && pixel.x <= endX && pixel.y >= startY && pixel.y <= endY) {
+            const screenX = (pixel.x - startX) * PIXEL_SIZE * zoom
+            const screenY = (pixel.y - startY) * PIXEL_SIZE * zoom
+
+            ctx.fillStyle = pixel.color
+            ctx.fillRect(
+              screenX,
+              screenY,
+              PIXEL_SIZE * zoom,
+              PIXEL_SIZE * zoom
+            )
+          }
+        })
+      }
+    }
+
+    // Update size initially
+    updateCanvasSize()
+
+    // Update size on window resize
+    const resizeObserver = new ResizeObserver(updateCanvasSize)
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current)
+    }
+
+    return () => {
+      resizeObserver.disconnect()
+    }
+  }, [allPixels, offset, zoom])
 
   useEffect(() => {
     if (isLoading) return
@@ -193,11 +267,19 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
   }
 
   return (
-    <div style={{ overflow: 'hidden', width: '100%', height: '100vh', position: 'relative' }}>
+    <div 
+      ref={containerRef}
+      style={{ 
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        overflow: 'hidden'
+      }}
+    >
       <canvas
         ref={canvasRef}
-        width={800}
-        height={600}
         onClick={handleCanvasClick}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
@@ -207,7 +289,8 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
         style={{
           cursor: 'crosshair',
           border: '1px solid #ccc',
-          background: '#FFFFFF'
+          background: '#FFFFFF',
+          display: 'block' // Prevent extra space at bottom
         }}
       />
       {hoveredPixel && (
