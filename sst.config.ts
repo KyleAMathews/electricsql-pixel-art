@@ -70,10 +70,10 @@ function deploySite(
       url: `http://localhost:5432`,
     },
     environment: {
-      PUBLIC_ELECTRIC_TOKEN: electricInfo.properties.token,
-      PUBLIC_DATABASE_ID: electricInfo.properties.id,
-      PUBLIC_ELECTRIC_URL: process.env.ELECTRIC_URL,
-      PUBLIC_API_URL: worker.url as unknown as string,
+      VITE_ELECTRIC_TOKEN: electricInfo.properties.token,
+      VITE_DATABASE_ID: electricInfo.properties.id,
+      VITE_ELECTRIC_URL: process.env.ELECTRIC_URL,
+      VITE_API_URL: worker.url as unknown as string,
     },
   });
 }

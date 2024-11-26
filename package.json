@@ -14,13 +14,16 @@
   "dependencies": {
     "@electric-sql/client": "^0.8.0",
     "@electric-sql/react": "^0.5.4",
+    "@hono/zod-validator": "^0.4.1",
     "cors": "^2.8.5",
     "express": "^4.18.2",
+    "hono": "^4.6.12",
     "postgres": "^3.4.3",
     "react": "canary",
     "react-dom": "canary",
     "sst": "3.3.30",
-    "uuid": "^11.0.3"
+    "uuid": "^11.0.3",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/aws-lambda": "8.10.146",
