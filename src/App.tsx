@@ -1,4 +1,4 @@
-import { useEffect, useState , useOptimistic} from 'react'
+import { useEffect, useState, useOptimistic } from 'react'
 import { useShape, getShapeStream } from '@electric-sql/react'
 import { v4 as uuidv4 } from 'uuid'
 import { Canvas } from './components/Canvas'
@@ -18,7 +18,7 @@ async function createUser(newUser: Partial<User>) {
   })
 
   // Post to backend
-  const fetchPromise = fetch('/api/users', {
+  const fetchPromise = fetch(`${import.meta.env.VITE_API_URL}/api/users`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -33,7 +33,7 @@ function App() {
   const [userId, setUserId] = useState<string>('')
   const [username, setUsername] = useState('')
   const [selectedColor, setSelectedColor] = useState('#000000')
-  
+
   // Initialize shapes
   const { data: users = [], isLoading } = useShape<User>(userShape())
   const [optimisticUsers, addOptimisticUser] = useOptimistic(
@@ -43,7 +43,7 @@ function App() {
 
   const handleLogin = async () => {
     if (!username) return
-    
+
     const newUser = {
       id: uuidv4(),
       username,
@@ -51,11 +51,11 @@ function App() {
       last_active: new Date(),
       created_at: new Date()
     }
-    
+
     // Update optimistically
     addOptimisticUser(newUser)
     setUserId(newUser.id)
-    
+
     // Send to backend
     await createUser(newUser)
   }

@@ -12,6 +12,7 @@
     "server": "tsx watch server/index.ts"
   },
   "dependencies": {
+    "@databases/pg-migrations": "^5.0.3",
     "@electric-sql/client": "^0.8.0",
     "@electric-sql/react": "^0.5.4",
     "@hono/zod-validator": "^0.4.1",

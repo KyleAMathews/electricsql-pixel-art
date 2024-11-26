@@ -49,7 +49,7 @@ export default $config({
 
 function applyMigrations(uri: string) {
   console.log(`apply migrations to `, uri)
-  execSync(`npx pg-migrations apply --directory ./db/migrations`, {
+  execSync(`npx pg-migrations apply --directory ./migrations`, {
     env: {
       ...process.env,
       DATABASE_URL: uri,
@@ -58,7 +58,7 @@ function applyMigrations(uri: string) {
 }
 
 function deploySite(
-  electricInfo: sst.Linkable<{ id: string; token: string }>,
+  electricInfo: sst.Linkable<{ database_id: string; token: string }>,
   worker: sst.cloudflare.Worker,
 ) {
   return new sst.aws.StaticSite("game-app", {
@@ -67,11 +67,11 @@ function deploySite(
       dns: sst.cloudflare.dns(),
     },
     dev: {
-      url: `http://localhost:5432`,
+      url: `http://localhost:5173`,
     },
     environment: {
       VITE_ELECTRIC_TOKEN: electricInfo.properties.token,
-      VITE_DATABASE_ID: electricInfo.properties.id,
+      VITE_DATABASE_ID: electricInfo.properties.database_id,
       VITE_ELECTRIC_URL: process.env.ELECTRIC_URL,
       VITE_API_URL: worker.url as unknown as string,
     },
