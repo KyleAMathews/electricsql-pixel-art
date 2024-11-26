@@ -68,24 +68,31 @@ function App() {
     return (
       <div className="login-container">
         <h1>Pixel Canvas</h1>
-        <input
-          type="text"
-          placeholder="Enter username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          disabled={isLoading}
-        />
-        {error && (
-          <div className="error-message">
-            {error}
-          </div>
-        )}
-        <button 
-          onClick={handleLogin} 
-          disabled={isLoading}
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault()
+            await handleLogin()
+          }}
         >
-          {isLoading ? 'Joining...' : 'Join Canvas'}
-        </button>
+          <input
+            type="text"
+            placeholder="Enter username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            disabled={isLoading}
+          />
+          {error && (
+            <div className="error-message">
+              {error}
+            </div>
+          )}
+          <button 
+            type="submit"
+            disabled={isLoading || !username.trim()}
+          >
+            {isLoading ? 'Joining...' : 'Join Canvas'}
+          </button>
+        </form>
       </div>
     )
   }
