@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useShape, getShapeStream } from '@electric-sql/react'
-import { Pixel } from '../types/schema'
-import { pixelShape } from '../shapes'
+import { Pixel, User } from '../types/schema'
+import { pixelShape, userShape } from '../shapes'
 import { matchStream } from '../utils/match-stream'
+import { formatDistanceToNow } from 'date-fns'
 
 const CANVAS_SIZE = 1000
 const PIXEL_SIZE = 10
@@ -11,6 +12,12 @@ const VISIBLE_PIXELS = CANVAS_SIZE / PIXEL_SIZE
 interface CanvasProps {
   userId: string
   selectedColor: string
+}
+
+interface HoveredPixel {
+  pixel: Pixel
+  screenX: number
+  screenY: number
 }
 
 async function updatePixel(pixel: Partial<Pixel>) {
@@ -43,9 +50,12 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
   const [pendingPixels, setPendingPixels] = useState<Pixel[]>([])
+  const [hoveredPixel, setHoveredPixel] = useState<HoveredPixel | null>(null)
+  const tooltipRef = useRef<HTMLDivElement>(null)
 
   // Initialize shapes
   const { data: pixels = [], isLoading } = useShape<Pixel>(pixelShape())
+  const { data: users = [] } = useShape<User>(userShape())
   
   // Combine database pixels with pending pixels
   const allPixels = [...pixels, ...pendingPixels]
@@ -138,12 +148,40 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
   const handleMouseDown = () => setIsDragging(true)
   const handleMouseUp = () => setIsDragging(false)
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDragging) return
-    setOffset(prev => ({
-      x: prev.x - event.movementX,
-      y: prev.y - event.movementY
-    }))
+    if (isDragging) {
+      setOffset(prev => ({
+        x: prev.x - event.movementX,
+        y: prev.y - event.movementY
+      }))
+      setHoveredPixel(null)
+      return
+    }
+
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const rect = canvas.getBoundingClientRect()
+    const x = Math.floor((event.clientX - rect.left) / (PIXEL_SIZE * zoom)) + Math.floor(offset.x / (PIXEL_SIZE * zoom))
+    const y = Math.floor((event.clientY - rect.top) / (PIXEL_SIZE * zoom)) + Math.floor(offset.y / (PIXEL_SIZE * zoom))
+
+    // Find pixel at current position
+    const pixel = allPixels.find(p => p.x === x && p.y === y)
+    
+    if (pixel) {
+      setHoveredPixel({
+        pixel,
+        screenX: event.clientX,
+        screenY: event.clientY
+      })
+    } else {
+      setHoveredPixel(null)
+    }
   }
+
+  const handleMouseLeave = () => {
+    setHoveredPixel(null)
+  }
+
   const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
     event.preventDefault()
     const newZoom = Math.max(0.1, Math.min(10, zoom * (1 - event.deltaY * 0.001)))
@@ -155,15 +193,16 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
   }
 
   return (
-    <div style={{ overflow: 'hidden', width: '100%', height: '100vh' }}>
+    <div style={{ overflow: 'hidden', width: '100%', height: '100vh', position: 'relative' }}>
       <canvas
         ref={canvasRef}
-        width={800}  // Fixed canvas size
-        height={600} // Fixed canvas size
+        width={800}
+        height={600}
         onClick={handleCanvasClick}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
         onWheel={handleWheel}
         style={{
           cursor: 'crosshair',
@@ -171,6 +210,30 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
           background: '#FFFFFF'
         }}
       />
+      {hoveredPixel && (
+        <div
+          ref={tooltipRef}
+          style={{
+            position: 'fixed',
+            left: hoveredPixel.screenX + 10,
+            top: hoveredPixel.screenY + 10,
+            background: 'rgba(0, 0, 0, 0.8)',
+            color: 'white',
+            padding: '8px',
+            borderRadius: '4px',
+            fontSize: '14px',
+            pointerEvents: 'none',
+            zIndex: 1000
+          }}
+        >
+          <div>
+            User: {users.find(u => u.id === hoveredPixel.pixel.user_id)?.username || 'Unknown'}
+          </div>
+          <div>
+            Last updated: {formatDistanceToNow(new Date(hoveredPixel.pixel.last_updated))} ago
+          </div>
+        </div>
+      )}
     </div>
   )
 }
