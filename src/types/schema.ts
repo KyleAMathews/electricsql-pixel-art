@@ -1,4 +1,4 @@
-export interface User {
+export type User = {
   id: string;
   username: string;
   last_active: Date;
@@ -6,7 +6,7 @@ export interface User {
   created_at: Date;
 }
 
-export interface Pixel {
+export type Pixel = {
   x: number;
   y: number;
   color: string;

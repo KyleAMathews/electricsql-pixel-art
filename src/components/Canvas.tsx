@@ -21,13 +21,13 @@ async function updatePixel(pixel: Partial<Pixel>) {
   const findUpdatePromise = matchStream({
     stream: pixelsStream,
     operations: ['insert', 'update'],
-    matchFn: ({ message }) => 
-      message.value.x === pixel.x && 
+    matchFn: ({ message }) =>
+      message.value.x === pixel.x &&
       message.value.y === pixel.y
   })
 
   // Post to backend
-  const fetchPromise = fetch('/api/pixels', {
+  const fetchPromise = fetch(`${import.meta.env.VITE_API_URL}/api/pixels`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -78,8 +78,8 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
 
     // Filter visible pixels
     const visiblePixels = optimisticPixels.filter(
-      pixel => pixel.x >= startX && pixel.x <= endX && 
-               pixel.y >= startY && pixel.y <= endY
+      pixel => pixel.x >= startX && pixel.x <= endX &&
+        pixel.y >= startY && pixel.y <= endY
     )
 
     // Draw pixels
