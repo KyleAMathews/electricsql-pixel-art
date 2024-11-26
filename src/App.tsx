@@ -1,10 +1,7 @@
-import { useEffect, useState } from "react";
-import { useShape, getShapeStream } from "@electric-sql/react";
+import { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { Canvas } from "./components/Canvas";
-import { userShape } from "./shapes";
 import { User } from "./types/schema";
-import { matchStream } from "./utils/match-stream";
 import "./App.css";
 
 const STORAGE_KEY = "pixelCanvas_auth";
