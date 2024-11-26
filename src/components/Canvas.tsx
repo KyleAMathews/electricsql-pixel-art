@@ -325,7 +325,7 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
       ref={containerRef}
       style={{
         position: "absolute",
-        top: 0,
+        top: "64px", // Leave space for toolbar
         left: 0,
         right: 0,
         bottom: 0,
