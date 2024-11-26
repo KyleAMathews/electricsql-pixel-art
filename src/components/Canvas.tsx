@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { useShape, getShapeStream } from '@electric-sql/react'
-import { useOptimistic } from 'react'
 import { Pixel } from '../types/schema'
 import { pixelShape } from '../shapes'
 import { matchStream } from '../utils/match-stream'
@@ -43,19 +42,13 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
+  const [pendingPixels, setPendingPixels] = useState<Pixel[]>([])
 
   // Initialize shapes
   const { data: pixels = [], isLoading } = useShape<Pixel>(pixelShape())
-  const [optimisticPixels, addOptimisticPixel] = useOptimistic(
-    pixels,
-    (currentPixels: Pixel[], newPixel: Pixel) => {
-      // Replace existing pixel at same coordinates or add new one
-      const filteredPixels = currentPixels.filter(
-        p => !(p.x === newPixel.x && p.y === newPixel.y)
-      )
-      return [...filteredPixels, newPixel]
-    }
-  )
+  
+  // Combine database pixels with pending pixels
+  const allPixels = [...pixels, ...pendingPixels]
 
   useEffect(() => {
     if (isLoading) return
@@ -66,33 +59,48 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    // Clear canvas
+    // Clear canvas with a grid background
     ctx.fillStyle = '#FFFFFF'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-    // Get visible range based on offset and zoom
-    const startX = Math.floor(offset.x / PIXEL_SIZE)
-    const startY = Math.floor(offset.y / PIXEL_SIZE)
-    const endX = startX + Math.ceil(VISIBLE_PIXELS / zoom)
-    const endY = startY + Math.ceil(VISIBLE_PIXELS / zoom)
+    // Draw grid (optional - for better visibility)
+    ctx.strokeStyle = '#EEEEEE'
+    for (let x = 0; x < canvas.width; x += PIXEL_SIZE * zoom) {
+      ctx.beginPath()
+      ctx.moveTo(x, 0)
+      ctx.lineTo(x, canvas.height)
+      ctx.stroke()
+    }
+    for (let y = 0; y < canvas.height; y += PIXEL_SIZE * zoom) {
+      ctx.beginPath()
+      ctx.moveTo(0, y)
+      ctx.lineTo(canvas.width, y)
+      ctx.stroke()
+    }
 
-    // Filter visible pixels
-    const visiblePixels = optimisticPixels.filter(
-      pixel => pixel.x >= startX && pixel.x <= endX &&
-        pixel.y >= startY && pixel.y <= endY
-    )
+    // Calculate visible range
+    const startX = Math.floor(offset.x / (PIXEL_SIZE * zoom))
+    const startY = Math.floor(offset.y / (PIXEL_SIZE * zoom))
+    const endX = startX + Math.ceil(canvas.width / (PIXEL_SIZE * zoom))
+    const endY = startY + Math.ceil(canvas.height / (PIXEL_SIZE * zoom))
 
     // Draw pixels
-    visiblePixels.forEach((pixel: Pixel) => {
-      ctx.fillStyle = pixel.color
-      ctx.fillRect(
-        (pixel.x - startX) * PIXEL_SIZE * zoom,
-        (pixel.y - startY) * PIXEL_SIZE * zoom,
-        PIXEL_SIZE * zoom,
-        PIXEL_SIZE * zoom
-      )
+    allPixels.forEach((pixel: Pixel) => {
+      // Only draw pixels in the visible range
+      if (pixel.x >= startX && pixel.x <= endX && pixel.y >= startY && pixel.y <= endY) {
+        const screenX = (pixel.x - startX) * PIXEL_SIZE * zoom
+        const screenY = (pixel.y - startY) * PIXEL_SIZE * zoom
+
+        ctx.fillStyle = pixel.color
+        ctx.fillRect(
+          screenX,
+          screenY,
+          PIXEL_SIZE * zoom,
+          PIXEL_SIZE * zoom
+        )
+      }
     })
-  }, [optimisticPixels, offset, zoom, isLoading])
+  }, [allPixels, offset, zoom, isLoading])
 
   const handleCanvasClick = async (event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
@@ -102,7 +110,7 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
     const x = Math.floor((event.clientX - rect.left + offset.x) / (PIXEL_SIZE * zoom))
     const y = Math.floor((event.clientY - rect.top + offset.y) / (PIXEL_SIZE * zoom))
 
-    const newPixel = {
+    const newPixel: Pixel = {
       x,
       y,
       color: selectedColor,
@@ -110,11 +118,20 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
       last_updated: new Date()
     }
 
-    // Update optimistically
-    addOptimisticPixel(newPixel)
+    try {
+      // Add to pending pixels immediately
+      setPendingPixels(prev => [...prev, newPixel])
 
-    // Send to backend
-    await updatePixel(newPixel)
+      // Send to backend
+      await updatePixel(newPixel)
+
+      // Remove from pending once confirmed
+      setPendingPixels(prev => prev.filter(p => !(p.x === x && p.y === y)))
+    } catch (error) {
+      console.error('Error updating pixel:', error)
+      // Remove from pending on error
+      setPendingPixels(prev => prev.filter(p => !(p.x === x && p.y === y)))
+    }
   }
 
   const handleMouseDown = () => setIsDragging(true)
@@ -137,19 +154,22 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
   }
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={VISIBLE_PIXELS}
-      height={VISIBLE_PIXELS}
-      onClick={handleCanvasClick}
-      onMouseDown={handleMouseDown}
-      onMouseUp={handleMouseUp}
-      onMouseMove={handleMouseMove}
-      onWheel={handleWheel}
-      style={{
-        cursor: 'crosshair',
-        border: '1px solid #ccc'
-      }}
-    />
+    <div style={{ overflow: 'hidden', width: '100%', height: '100vh' }}>
+      <canvas
+        ref={canvasRef}
+        width={800}  // Fixed canvas size
+        height={600} // Fixed canvas size
+        onClick={handleCanvasClick}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseMove={handleMouseMove}
+        onWheel={handleWheel}
+        style={{
+          cursor: 'crosshair',
+          border: '1px solid #ccc',
+          background: '#FFFFFF'
+        }}
+      />
+    </div>
   )
 }
