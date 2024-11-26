@@ -37,13 +37,28 @@ app.post("/api/users", zValidator("json", userSchema), async (c) => {
     const user = await sql`
       INSERT INTO users (id, username, pixels_placed, last_active, created_at)
       VALUES (${id}, ${username}, ${pixels_placed}, ${last_active}, ${created_at})
+      ON CONFLICT (username) DO UPDATE SET
+        last_active = ${last_active}
       RETURNING *
     `;
     
-    return c.json(user[0]);
+    return c.json({
+      success: true,
+      user: user[0]
+    });
   } catch (error) {
     console.error("Error creating user:", error);
-    return c.json({ error: "Failed to create user" }, 500);
+    // Check for unique constraint violation
+    if (error.code === '23505') {
+      return c.json({
+        success: false,
+        error: `Username "${username}" is already taken. Please choose a different username.`
+      }, 409); // 409 Conflict
+    }
+    return c.json({
+      success: false,
+      error: "Failed to create user. Please try again."
+    }, 500);
   }
 });
 
