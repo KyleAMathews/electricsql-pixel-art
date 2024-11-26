@@ -20,6 +20,24 @@ interface HoveredPixel {
   screenY: number
 }
 
+interface ViewState {
+  offset: { x: number; y: number };
+  zoom: number;
+}
+
+const STORAGE_KEY = 'pixelCanvas_viewState'
+
+function saveViewState(userId: string, state: ViewState) {
+  const allStates = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
+  allStates[userId] = state
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(allStates))
+}
+
+function loadViewState(userId: string): ViewState | null {
+  const allStates = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
+  return allStates[userId] || null
+}
+
 async function updatePixel(pixel: Partial<Pixel>) {
   const pixelsStream = getShapeStream<Pixel>(pixelShape())
 
@@ -60,6 +78,24 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
   
   // Combine database pixels with pending pixels
   const allPixels = [...pixels, ...pendingPixels]
+
+  // Load saved view state on mount
+  useEffect(() => {
+    const savedState = loadViewState(userId)
+    if (savedState) {
+      setOffset(savedState.offset)
+      setZoom(savedState.zoom)
+    }
+  }, [userId])
+
+  // Save view state when it changes
+  useEffect(() => {
+    const debounceTimeout = setTimeout(() => {
+      saveViewState(userId, { offset, zoom })
+    }, 500) // Debounce to avoid too frequent saves
+
+    return () => clearTimeout(debounceTimeout)
+  }, [userId, offset, zoom])
 
   // Handle canvas resize
   useEffect(() => {
@@ -223,10 +259,11 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
   const handleMouseUp = () => setIsDragging(false)
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
     if (isDragging) {
-      setOffset(prev => ({
-        x: prev.x - event.movementX,
-        y: prev.y - event.movementY
-      }))
+      const newOffset = {
+        x: offset.x - event.movementX,
+        y: offset.y - event.movementY
+      }
+      setOffset(newOffset)
       setHoveredPixel(null)
       return
     }
