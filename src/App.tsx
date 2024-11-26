@@ -1,4 +1,4 @@
-import { useEffect, useState, useOptimistic } from 'react'
+import { useEffect, useState } from 'react'
 import { useShape, getShapeStream } from '@electric-sql/react'
 import { v4 as uuidv4 } from 'uuid'
 import { Canvas } from './components/Canvas'
@@ -8,17 +8,8 @@ import { matchStream } from './utils/match-stream'
 import './App.css'
 
 async function createUser(newUser: Partial<User>) {
-  const usersStream = getShapeStream<User>(userShape())
-
-  // Match the insert
-  const findUpdatePromise = matchStream({
-    stream: usersStream,
-    operations: ['insert'],
-    matchFn: ({ message }) => message.value.username === newUser.username
-  })
-
   // Post to backend
-  const fetchPromise = fetch(`${import.meta.env.VITE_API_URL}/api/users`, {
+  const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -26,23 +17,23 @@ async function createUser(newUser: Partial<User>) {
     body: JSON.stringify(newUser),
   })
 
-  return await Promise.all([findUpdatePromise, fetchPromise])
+  return await response.json()
 }
 
 function App() {
   const [userId, setUserId] = useState<string>('')
   const [username, setUsername] = useState('')
   const [selectedColor, setSelectedColor] = useState('#000000')
+  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
 
   // Initialize shapes
-  const { data: users = [], isLoading } = useShape<User>(userShape())
-  const [optimisticUsers, addOptimisticUser] = useOptimistic(
-    users,
-    (currentUsers: User[], newUser: User) => [...currentUsers, newUser]
-  )
+  const { data: users = [], isLoading: usersLoading } = useShape<User>(userShape())
 
   const handleLogin = async () => {
     if (!username) return
+    setError(null)
+    setIsLoading(true)
 
     const newUser = {
       id: uuidv4(),
@@ -52,15 +43,24 @@ function App() {
       created_at: new Date()
     }
 
-    // Update optimistically
-    addOptimisticUser(newUser)
-    setUserId(newUser.id)
-
-    // Send to backend
-    await createUser(newUser)
+    try {
+      const response = await createUser(newUser)
+      
+      if (!response.success) {
+        setError(response.error)
+        return
+      }
+      
+      setUserId(response.user.id)
+    } catch (error) {
+      console.error('Error creating user:', error)
+      setError('Failed to connect to server. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  if (isLoading) {
+  if (usersLoading) {
     return <div>Loading...</div>
   }
 
@@ -73,8 +73,19 @@ function App() {
           placeholder="Enter username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
+          disabled={isLoading}
         />
-        <button onClick={handleLogin}>Join Canvas</button>
+        {error && (
+          <div className="error-message">
+            {error}
+          </div>
+        )}
+        <button 
+          onClick={handleLogin} 
+          disabled={isLoading}
+        >
+          {isLoading ? 'Joining...' : 'Join Canvas'}
+        </button>
       </div>
     )
   }
