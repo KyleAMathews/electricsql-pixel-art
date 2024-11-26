@@ -1,3 +1,5 @@
+import { Row } from "@electric-sql/client";
+
 export type User = {
   id: string;
   username: string;
@@ -6,7 +8,7 @@ export type User = {
   created_at: Date;
 }
 
-export type Pixel = {
+export type Pixel = Row & {
   x: number;
   y: number;
   color: string;

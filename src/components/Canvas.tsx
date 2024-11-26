@@ -5,9 +5,7 @@ import { pixelShape, userShape } from "../shapes";
 import { matchStream } from "../utils/match-stream";
 import { formatDistanceToNow } from "date-fns";
 
-const CANVAS_SIZE = 1000;
 const PIXEL_SIZE = 10;
-const VISIBLE_PIXELS = CANVAS_SIZE / PIXEL_SIZE;
 
 interface CanvasProps {
   userId: string;
@@ -70,6 +68,10 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
   const [pendingPixels, setPendingPixels] = useState<Pixel[]>([]);
   const [hoveredPixel, setHoveredPixel] = useState<HoveredPixel | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const isTouchRef = useRef(false);
+  const initialTouchRef = useRef<{ x: number; y: number } | null>(null);
+  const lastTouchDistance = useRef<number | null>(null);
+  const lastTouchPos = useRef<{ x: number; y: number } | null>(null);
 
   // Initialize shapes
   const { data: pixels = [], isLoading } = useShape<Pixel>(pixelShape());
@@ -229,6 +231,12 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
   const handleCanvasClick = async (
     event: React.MouseEvent<HTMLCanvasElement>,
   ) => {
+    // Prevent click events from firing during touch interactions
+    if (isTouchRef.current) {
+      isTouchRef.current = false;
+      return;
+    }
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -316,6 +324,90 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
     setZoom(newZoom);
   };
 
+  // Add touch event handlers
+  const handleTouchStart = (event: React.TouchEvent<HTMLCanvasElement>) => {
+    event.preventDefault(); // Prevent scrolling while touching canvas
+    isTouchRef.current = true;
+    const touch = event.touches[0];
+    if (!touch) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x =
+      Math.floor((touch.clientX - rect.left) / (PIXEL_SIZE * zoom)) +
+      Math.floor(offset.x / (PIXEL_SIZE * zoom));
+    const y =
+      Math.floor((touch.clientY - rect.top) / (PIXEL_SIZE * zoom)) +
+      Math.floor(offset.y / (PIXEL_SIZE * zoom));
+
+    // Store initial touch position
+    initialTouchRef.current = { x, y };
+  };
+
+  const handleTouchEnd = (event: React.TouchEvent<HTMLCanvasElement>) => {
+    event.preventDefault();
+    const touch = event.changedTouches[0];
+    if (!touch || !initialTouchRef.current) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const currentX =
+      Math.floor((touch.clientX - rect.left) / (PIXEL_SIZE * zoom)) +
+      Math.floor(offset.x / (PIXEL_SIZE * zoom));
+    const currentY =
+      Math.floor((touch.clientY - rect.top) / (PIXEL_SIZE * zoom)) +
+      Math.floor(offset.y / (PIXEL_SIZE * zoom));
+
+    // Calculate the Manhattan distance between start and end positions
+    const xDiff = Math.abs(currentX - initialTouchRef.current.x);
+    const yDiff = Math.abs(currentY - initialTouchRef.current.y);
+    const manhattanDistance = xDiff + yDiff;
+
+    // Allow movement of up to 4 pixels total (using Manhattan distance)
+    if (manhattanDistance <= 4) {
+      handleCanvasClick({ clientX: touch.clientX, clientY: touch.clientY } as React.MouseEvent<HTMLCanvasElement>);
+    }
+    
+    initialTouchRef.current = null;
+    isTouchRef.current = false;
+  };
+
+  const handleTouchMove = (event: React.TouchEvent<HTMLCanvasElement>) => {
+    event.preventDefault(); // Prevent scrolling while touching canvas
+    isTouchRef.current = true;
+    const touch = event.touches[0];
+    if (!touch) return;
+
+    if (event.touches.length === 2) {
+      // Handle pinch zoom
+      const touch1 = event.touches[0];
+      const touch2 = event.touches[1];
+      const dist = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY);
+
+      if (lastTouchDistance.current) {
+        const delta = lastTouchDistance.current - dist;
+        const newZoom = Math.max(0.1, Math.min(10, zoom * (1 + delta * 0.01)));
+        setZoom(newZoom);
+      }
+      lastTouchDistance.current = dist;
+    } else {
+      // Handle panning
+      const movementX = (lastTouchPos.current?.x || touch.clientX) - touch.clientX;
+      const movementY = (lastTouchPos.current?.y || touch.clientY) - touch.clientY;
+
+      setOffset(prev => ({
+        x: prev.x + movementX,
+        y: prev.y + movementY
+      }));
+
+      lastTouchPos.current = { x: touch.clientX, y: touch.clientY };
+    }
+  };
+
   if (isLoading) {
     return ``;
   }
@@ -340,11 +432,15 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onWheel={handleWheel}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         style={{
           cursor: "crosshair",
           border: "1px solid #ccc",
           background: "#FFFFFF",
-          display: "block", // Prevent extra space at bottom
+          display: "block",
+          touchAction: "none", // Prevent browser handling of touch events
         }}
       />
       {hoveredPixel && (

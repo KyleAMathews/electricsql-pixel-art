@@ -22,7 +22,7 @@ export default $config({
 
       const electricUrlLink = new sst.Linkable("ElectricUrl", {
         properties: {
-          url: process.env.ELECTRIC_URL
+          url: process.env.ELECTRIC_URL,
         },
       });
 
@@ -48,7 +48,7 @@ export default $config({
 });
 
 function applyMigrations(uri: string) {
-  console.log(`apply migrations to `, uri)
+  console.log(`apply migrations to `, uri);
   execSync(`npx pg-migrations apply --directory ./migrations`, {
     env: {
       ...process.env,
@@ -68,6 +68,10 @@ function deploySite(
     },
     dev: {
       url: `http://localhost:5173`,
+    },
+    build: {
+      command: `npm run build`,
+      output: `dist`,
     },
     environment: {
       VITE_ELECTRIC_TOKEN: electricInfo.properties.token,

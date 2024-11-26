@@ -93,7 +93,7 @@ app.post("/api/pixels", zValidator("json", pixelSchema), async (c) => {
     return c.json(pixel[0]);
   } catch (error) {
     console.error("Error updating pixel:", error);
-    return c.json({ error: "Failed to update pixel" }, 500);
+    return c.json({ error: "Failed to update pixel", message: error.message }, 500);
   }
 });
 
