@@ -107,8 +107,9 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
     if (!canvas) return
 
     const rect = canvas.getBoundingClientRect()
-    const x = Math.floor((event.clientX - rect.left + offset.x) / (PIXEL_SIZE * zoom))
-    const y = Math.floor((event.clientY - rect.top + offset.y) / (PIXEL_SIZE * zoom))
+    // Adjust the coordinate calculation to account for the grid alignment
+    const x = Math.floor((event.clientX - rect.left) / (PIXEL_SIZE * zoom)) + Math.floor(offset.x / (PIXEL_SIZE * zoom))
+    const y = Math.floor((event.clientY - rect.top) / (PIXEL_SIZE * zoom)) + Math.floor(offset.y / (PIXEL_SIZE * zoom))
 
     const newPixel: Pixel = {
       x,
