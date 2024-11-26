@@ -7,6 +7,9 @@ import { User } from "./types/schema";
 import { matchStream } from "./utils/match-stream";
 import "./App.css";
 
+const STORAGE_KEY = "pixelCanvas_auth";
+const EXPIRY_DAYS = 7;
+
 async function createUser(newUser: Partial<User>) {
   // Post to backend
   const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users`, {
@@ -20,9 +23,41 @@ async function createUser(newUser: Partial<User>) {
   return await response.json();
 }
 
+function saveAuth(userId: string, username: string) {
+  const expiryDate = new Date();
+  expiryDate.setDate(expiryDate.getDate() + EXPIRY_DAYS);
+
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      userId,
+      username,
+      expiry: expiryDate.toISOString(),
+    }),
+  );
+}
+
+function loadAuth() {
+  const auth = localStorage.getItem(STORAGE_KEY);
+  if (!auth) return null;
+
+  const { userId, username, expiry } = JSON.parse(auth);
+  if (new Date(expiry) < new Date()) {
+    localStorage.removeItem(STORAGE_KEY);
+    return null;
+  }
+
+  return { userId, username };
+}
+
+function clearAuth() {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
 function App() {
-  const [userId, setUserId] = useState<string>("");
-  const [username, setUsername] = useState("");
+  const savedAuth = loadAuth();
+  const [userId, setUserId] = useState<string>(savedAuth?.userId || "");
+  const [username, setUsername] = useState(savedAuth?.username || "");
   const [selectedColor, setSelectedColor] = useState("#000000");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -49,12 +84,21 @@ function App() {
       }
 
       setUserId(response.user.id);
+      // Save auth info
+      saveAuth(response.user.id, username);
     } catch (error) {
       console.error("Error creating user:", error);
       setError("Failed to connect to server. Please try again.");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleLogout = () => {
+    clearAuth();
+    setUserId("");
+    setUsername("");
+    setSelectedColor("#000000");
   };
 
   if (!userId) {
@@ -92,6 +136,20 @@ function App() {
           onChange={(e) => setSelectedColor(e.target.value)}
         />
         <span className="username">{username}</span>
+        <button
+          onClick={handleLogout}
+          style={{
+            marginLeft: "auto",
+            background: "none",
+            border: "none",
+            color: "#666",
+            fontSize: "12px",
+            cursor: "pointer",
+            padding: "4px 8px",
+          }}
+        >
+          Logout
+        </button>
       </div>
       <Canvas userId={userId} selectedColor={selectedColor} />
     </div>
