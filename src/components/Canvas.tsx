@@ -70,6 +70,7 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
   const lastTouchPos = useRef<{ x: number; y: number } | null>(null);
   const lastPixelTimeRef = useRef<number>(Date.now());
   const [isDragging, setIsDragging] = useState(false);
+  const [hasMoved, setHasMoved] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [pendingPixels, setPendingPixels] = useState<Pixel[]>([]);
@@ -289,26 +290,28 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
   };
 
   const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    event.preventDefault();
     setIsDragging(true);
-    setDragStartPos({ x: event.clientX, y: event.clientY });
+    setHasMoved(false);
+    setDragStartPos({
+      x: event.clientX,
+      y: event.clientY,
+    });
   };
 
   const handleMouseUp = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    // Only trigger click if the mouse hasn't moved much (not a drag)
-    if (dragStartPos) {
-      const dx = Math.abs(event.clientX - dragStartPos.x);
-      const dy = Math.abs(event.clientY - dragStartPos.y);
-      console.log({ dx, dy })
-      if (dx < 5 && dy < 5) {
-        handleCanvasClick(event);
-      }
+    // Only trigger click if there was absolutely no movement
+    if (dragStartPos && !hasMoved) {
+      handleCanvasClick(event);
     }
     setIsDragging(false);
     setDragStartPos(null);
+    setHasMoved(false);
   };
 
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
     if (isDragging) {
+      setHasMoved(true);
       const deltaX = event.clientX - dragStartPos!.x;
       const deltaY = event.clientY - dragStartPos!.y;
 
@@ -608,12 +611,12 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
       {(() => {
         const now = Date.now();
         const timeSinceLastPixel = now - lastPixelTimeRef.current;
-        console.log({
-          hoveredPixel: !!hoveredPixel,
-          isTouch: isTouchRef.current,
-          timeSinceLastPixel,
-          shouldShow: hoveredPixel && !isTouchRef.current && timeSinceLastPixel > 4000
-        });
+        // console.log({
+        //   hoveredPixel: !!hoveredPixel,
+        //   isTouch: isTouchRef.current,
+        //   timeSinceLastPixel,
+        //   shouldShow: hoveredPixel && !isTouchRef.current && timeSinceLastPixel > 4000
+        // });
         return hoveredPixel && !isTouchRef.current && timeSinceLastPixel > 4000 && (
           <div
             ref={tooltipRef}
