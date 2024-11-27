@@ -61,18 +61,26 @@ async function updatePixel(pixel: Partial<Pixel>) {
 }
 
 export function Canvas({ userId, selectedColor }: CanvasProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [pendingPixels, setPendingPixels] = useState<Pixel[]>([]);
-  const [hoveredPixel, setHoveredPixel] = useState<HoveredPixel | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const isTouchRef = useRef(false);
   const initialTouchRef = useRef<{ x: number; y: number } | null>(null);
   const lastTouchDistance = useRef<number | null>(null);
   const lastTouchPos = useRef<{ x: number; y: number } | null>(null);
+  const lastPixelTimeRef = useRef<number>(Date.now());
+  const [isDragging, setIsDragging] = useState(false);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [pendingPixels, setPendingPixels] = useState<Pixel[]>([]);
+  const [hoveredPixel, setHoveredPixel] = useState<{
+    x: number;
+    y: number;
+    user: User | undefined;
+    lastUpdated: string;
+    screenX: number;
+    screenY: number;
+  } | null>(null);
   const [dragStartPos, setDragStartPos] = useState<{
     x: number;
     y: number;
@@ -248,7 +256,6 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    // Adjust the coordinate calculation to account for the grid alignment
     const x =
       Math.floor((event.clientX - rect.left) / (PIXEL_SIZE * zoom)) +
       Math.floor(offset.x / (PIXEL_SIZE * zoom));
@@ -256,7 +263,7 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
       Math.floor((event.clientY - rect.top) / (PIXEL_SIZE * zoom)) +
       Math.floor(offset.y / (PIXEL_SIZE * zoom));
 
-    const newPixel: Pixel = {
+    const newPixel: Partial<Pixel> = {
       x,
       y,
       color: selectedColor,
@@ -266,16 +273,17 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
 
     try {
       // Add to pending pixels immediately
-      setPendingPixels((prev) => [...prev, newPixel]);
+      setPendingPixels((prev) => [...prev, newPixel as Pixel]);
 
       // Send to backend
       await updatePixel(newPixel);
+      lastPixelTimeRef.current = Date.now();
 
       // Remove from pending once confirmed
       setPendingPixels((prev) => prev.filter((p) => !(p.x === x && p.y === y)));
     } catch (error) {
       console.error("Error updating pixel:", error);
-      // Remove from pending on error
+      // Remove from pending if there was an error
       setPendingPixels((prev) => prev.filter((p) => !(p.x === x && p.y === y)));
     }
   };
@@ -290,6 +298,7 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
     if (dragStartPos) {
       const dx = Math.abs(event.clientX - dragStartPos.x);
       const dy = Math.abs(event.clientY - dragStartPos.y);
+      console.log({ dx, dy })
       if (dx < 5 && dy < 5) {
         handleCanvasClick(event);
       }
@@ -300,12 +309,18 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
 
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
     if (isDragging) {
-      const newOffset = {
-        x: offset.x - event.movementX,
-        y: offset.y - event.movementY,
-      };
-      setOffset(newOffset);
-      setHoveredPixel(null);
+      const deltaX = event.clientX - dragStartPos!.x;
+      const deltaY = event.clientY - dragStartPos!.y;
+
+      setOffset((prev) => ({
+        x: prev.x - deltaX,
+        y: prev.y - deltaY,
+      }));
+
+      setDragStartPos({
+        x: event.clientX,
+        y: event.clientY,
+      });
       return;
     }
 
@@ -324,8 +339,12 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
     const pixel = allPixels.find((p) => p.x === x && p.y === y);
 
     if (pixel) {
+      const user = users.find((u) => u.id === pixel.user_id);
       setHoveredPixel({
-        pixel,
+        x,
+        y,
+        user,
+        lastUpdated: pixel.last_updated,
         screenX: event.clientX,
         screenY: event.clientY,
       });
@@ -443,6 +462,7 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
         try {
           // Send to backend
           await updatePixel(newPixel);
+          lastPixelTimeRef.current = Date.now();
           // Remove from pending once confirmed
           setPendingPixels((prev) =>
             prev.filter((p) => !(p.x === x && p.y === y)),
@@ -585,33 +605,45 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
           −
         </button>
       </div>
-      {hoveredPixel && (
-        <div
-          ref={tooltipRef}
-          style={{
-            position: "fixed",
-            left: hoveredPixel.screenX + 10,
-            top: hoveredPixel.screenY + 10,
-            background: "rgba(0, 0, 0, 0.8)",
-            color: "white",
-            padding: "8px",
-            borderRadius: "4px",
-            fontSize: "14px",
-            pointerEvents: "none",
-            zIndex: 1000,
-          }}
-        >
-          <div>
-            User:{" "}
-            {users.find((u) => u.id === hoveredPixel.pixel.user_id)?.username ||
-              "Unknown"}
+      {(() => {
+        const now = Date.now();
+        const timeSinceLastPixel = now - lastPixelTimeRef.current;
+        console.log({
+          hoveredPixel: !!hoveredPixel,
+          isTouch: isTouchRef.current,
+          timeSinceLastPixel,
+          shouldShow: hoveredPixel && !isTouchRef.current && timeSinceLastPixel > 4000
+        });
+        return hoveredPixel && !isTouchRef.current && timeSinceLastPixel > 4000 && (
+          <div
+            ref={tooltipRef}
+            style={{
+              position: "fixed",
+              left: hoveredPixel.screenX + 10,
+              top: hoveredPixel.screenY + 10,
+              background: "rgba(0,0,0,0.8)",
+              color: "white",
+              padding: "8px",
+              borderRadius: "4px",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+              zIndex: 1000,
+              fontSize: "14px",
+              maxWidth: "200px",
+              wordWrap: "break-word",
+            }}
+          >
+            <div>
+              Created by: {hoveredPixel.user?.username || "Unknown user"}
+            </div>
+            <div>
+              Last updated:{" "}
+              {formatDistanceToNow(new Date(hoveredPixel.lastUpdated), {
+                addSuffix: true,
+              })}
+            </div>
           </div>
-          <div>
-            Last updated:{" "}
-            {formatDistanceToNow(new Date(hoveredPixel.pixel.last_updated))} ago
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
