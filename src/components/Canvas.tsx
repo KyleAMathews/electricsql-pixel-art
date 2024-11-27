@@ -13,12 +13,6 @@ interface CanvasProps {
   selectedColor: string;
 }
 
-interface HoveredPixel {
-  pixel: Pixel;
-  screenX: number;
-  screenY: number;
-}
-
 interface ViewState {
   offset: { x: number; y: number };
   zoom: number;
@@ -66,7 +60,6 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
   const tooltipRef = useRef<HTMLDivElement>(null);
   const isTouchRef = useRef(false);
   const initialTouchRef = useRef<{ x: number; y: number } | null>(null);
-  const lastTouchDistance = useRef<number | null>(null);
   const lastTouchPos = useRef<{ x: number; y: number } | null>(null);
   const lastPixelTimeRef = useRef<number>(Date.now());
   const [isDragging, setIsDragging] = useState(false);
