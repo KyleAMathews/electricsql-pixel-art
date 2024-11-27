@@ -4,6 +4,7 @@ import { Pixel, User } from "../types/schema";
 import { pixelShape, userShape } from "../shapes";
 import { matchStream } from "../utils/match-stream";
 import { formatDistanceToNow } from "date-fns";
+import { loadAuth } from "../App";
 
 const PIXEL_SIZE = 10;
 
@@ -186,97 +187,6 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    // Clear canvas with a grid background
-    ctx.fillStyle = "#FFFFFF";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Draw grid (optional - for better visibility)
-    ctx.strokeStyle = "#EEEEEE";
-    for (let x = 0; x < canvas.width; x += PIXEL_SIZE * zoom) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, canvas.height);
-      ctx.stroke();
-    }
-    for (let y = 0; y < canvas.height; y += PIXEL_SIZE * zoom) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(canvas.width, y);
-      ctx.stroke();
-    }
-
-    // Calculate visible range
-    const startX = Math.floor(offset.x / (PIXEL_SIZE * zoom));
-    const startY = Math.floor(offset.y / (PIXEL_SIZE * zoom));
-    const endX = startX + Math.ceil(canvas.width / (PIXEL_SIZE * zoom));
-    const endY = startY + Math.ceil(canvas.height / (PIXEL_SIZE * zoom));
-
-    // Draw pixels
-    allPixels.forEach((pixel: Pixel) => {
-      // Only draw pixels in the visible range
-      if (
-        pixel.x >= startX &&
-        pixel.x <= endX &&
-        pixel.y >= startY &&
-        pixel.y <= endY
-      ) {
-        const screenX = (pixel.x - startX) * PIXEL_SIZE * zoom;
-        const screenY = (pixel.y - startY) * PIXEL_SIZE * zoom;
-
-        ctx.fillStyle = pixel.color;
-        ctx.fillRect(screenX, screenY, PIXEL_SIZE * zoom, PIXEL_SIZE * zoom);
-      }
-    });
-  }, [allPixels, offset, zoom, isLoading]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const handleWheel = (event: WheelEvent) => {
-      if (event.ctrlKey) {
-        // This is likely a pinch-to-zoom gesture
-        event.preventDefault();
-        // Further reduced scale factor for even smoother zooming
-        const scale = event.deltaY > 0 ? 0.985 : 1.015;
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = event.clientX - rect.left;
-        const mouseY = event.clientY - rect.top;
-
-        const newZoom = Math.max(0.1, Math.min(10, zoom * scale));
-
-        if (Math.abs(newZoom - zoom) > 0.001) {
-          setZoom(newZoom);
-
-          // Adjust offset to keep the point under the mouse in the same position
-          const zoomDiff = newZoom - zoom;
-          const newOffset = {
-            x: offset.x + (mouseX * zoomDiff) / newZoom,
-            y: offset.y + (mouseY * zoomDiff) / newZoom,
-          };
-          setOffset(newOffset);
-        }
-      } else {
-        // Regular mouse wheel - handle panning
-        event.preventDefault();
-        setOffset({
-          x: offset.x + event.deltaX,
-          y: offset.y + event.deltaY,
-        });
-      }
-    };
-
-    canvas.addEventListener("wheel", handleWheel, { passive: false });
-    return () => canvas.removeEventListener("wheel", handleWheel);
-  }, [zoom, offset]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
     let initialScale = 1;
 
     const handleGestureStart = (e: any) => {
@@ -429,8 +339,8 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
   };
 
   const handleTouchStart = (event: React.TouchEvent<HTMLCanvasElement>) => {
-    event.preventDefault();
     isTouchRef.current = true;
+
     const touch = event.touches[0];
     if (!touch) return;
 
@@ -454,41 +364,7 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
     initialTouchRef.current = { x, y };
   };
 
-  const handleTouchEnd = (event: React.TouchEvent<HTMLCanvasElement>) => {
-    event.preventDefault();
-    const touch = event.changedTouches[0];
-    if (!touch || !initialTouchRef.current) return;
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const currentX =
-      Math.floor((touch.clientX - rect.left) / (PIXEL_SIZE * zoom)) +
-      Math.floor(offset.x / (PIXEL_SIZE * zoom));
-    const currentY =
-      Math.floor((touch.clientY - rect.top) / (PIXEL_SIZE * zoom)) +
-      Math.floor(offset.y / (PIXEL_SIZE * zoom));
-
-    // Calculate the Manhattan distance between start and end positions
-    const xDiff = Math.abs(currentX - initialTouchRef.current.x);
-    const yDiff = Math.abs(currentY - initialTouchRef.current.y);
-    const manhattanDistance = xDiff + yDiff;
-
-    // Allow movement of up to 4 pixels total (using Manhattan distance)
-    if (manhattanDistance <= 4) {
-      handleCanvasClick({
-        clientX: touch.clientX,
-        clientY: touch.clientY,
-      } as React.MouseEvent<HTMLCanvasElement>);
-    }
-
-    initialTouchRef.current = null;
-    isTouchRef.current = false;
-  };
-
   const handleTouchMove = (event: React.TouchEvent<HTMLCanvasElement>) => {
-    event.preventDefault(); // Prevent scrolling while touching canvas
     isTouchRef.current = true;
     const touch = event.touches[0];
     if (!touch) return;
@@ -517,6 +393,72 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
       x: touch.clientX,
       y: touch.clientY,
     };
+  };
+
+  const handleTouchEnd = async (event: React.TouchEvent<HTMLCanvasElement>) => {
+    const touch = event.changedTouches[0];
+    if (!touch || !initialTouchRef.current) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+
+    const currentX =
+      Math.floor((touch.clientX - rect.left) / (PIXEL_SIZE * zoom)) +
+      Math.floor(offset.x / (PIXEL_SIZE * zoom));
+    const currentY =
+      Math.floor((touch.clientY - rect.top) / (PIXEL_SIZE * zoom)) +
+      Math.floor(offset.y / (PIXEL_SIZE * zoom));
+
+    // Calculate the Manhattan distance between start and end positions
+    const xDiff = Math.abs(currentX - initialTouchRef.current.x);
+    const yDiff = Math.abs(currentY - initialTouchRef.current.y);
+    const manhattanDistance = xDiff + yDiff;
+
+    // Allow movement of up to 4 pixels total (using Manhattan distance)
+    if (manhattanDistance <= 4) {
+      const x =
+        Math.floor((touch.clientX - rect.left) / (PIXEL_SIZE * zoom)) +
+        Math.floor(offset.x / (PIXEL_SIZE * zoom));
+      const y =
+        Math.floor((touch.clientY - rect.top) / (PIXEL_SIZE * zoom)) +
+        Math.floor(offset.y / (PIXEL_SIZE * zoom));
+
+      const auth = loadAuth();
+      if (!auth) return;
+
+      const existingPixel = pixels.find((p) => p.x === x && p.y === y);
+      if (!existingPixel) {
+        const newPixel: Partial<Pixel> = {
+          x,
+          y,
+          color: selectedColor,
+          user_id: auth.userId,
+          last_updated: new Date().toISOString(),
+        };
+
+        // Add to pending pixels immediately
+        setPendingPixels((prev) => [...prev, newPixel as Pixel]);
+
+        try {
+          // Send to backend
+          await updatePixel(newPixel);
+          // Remove from pending once confirmed
+          setPendingPixels((prev) =>
+            prev.filter((p) => !(p.x === x && p.y === y)),
+          );
+        } catch (error) {
+          console.error("Error updating pixel:", error);
+          // Remove from pending if there was an error
+          setPendingPixels((prev) =>
+            prev.filter((p) => !(p.x === x && p.y === y)),
+          );
+        }
+      }
+    }
+
+    initialTouchRef.current = null;
+    isTouchRef.current = false;
   };
 
   const handleZoomIn = () => {
@@ -582,6 +524,7 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
         onTouchEnd={handleTouchEnd}
         style={{
           cursor: "crosshair",
+          touchAction: "none",
         }}
       />
       {/* Zoom controls */}
