@@ -422,23 +422,26 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
   };
 
   const handleTouchStart = (event: React.TouchEvent<HTMLCanvasElement>) => {
-    event.preventDefault(); // Prevent scrolling while touching canvas
+    event.preventDefault();
     isTouchRef.current = true;
     const touch = event.touches[0];
     if (!touch) return;
+
+    // Initialize touch position without any movement
+    lastTouchPos.current = {
+      x: touch.clientX,
+      y: touch.clientY
+    };
 
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const x =
-      Math.floor((touch.clientX - rect.left) / (PIXEL_SIZE * zoom)) +
+    const x = Math.floor((touch.clientX - rect.left) / (PIXEL_SIZE * zoom)) +
       Math.floor(offset.x / (PIXEL_SIZE * zoom));
-    const y =
-      Math.floor((touch.clientY - rect.top) / (PIXEL_SIZE * zoom)) +
+    const y = Math.floor((touch.clientY - rect.top) / (PIXEL_SIZE * zoom)) +
       Math.floor(offset.y / (PIXEL_SIZE * zoom));
 
-    // Store initial touch position
     initialTouchRef.current = { x, y };
   };
 
@@ -491,17 +494,31 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
       }
       lastTouchDistance.current = dist;
     } else {
-      // Handle panning
-      const movementX = (lastTouchPos.current?.x || touch.clientX) - touch.clientX;
-      const movementY = (lastTouchPos.current?.y || touch.clientY) - touch.clientY;
+      // Handle panning with smoothing
+      if (lastTouchPos.current) {
+        const movementX = lastTouchPos.current.x - touch.clientX;
+        const movementY = lastTouchPos.current.y - touch.clientY;
+        
+        // Apply smoothing factor
+        const smoothingFactor = 0.6;
+        const smoothedX = movementX * smoothingFactor;
+        const smoothedY = movementY * smoothingFactor;
 
-      setOffset(prev => ({
-        x: prev.x + movementX,
-        y: prev.y + movementY
-      }));
-
-      lastTouchPos.current = { x: touch.clientX, y: touch.clientY };
+        // Only update if movement is significant
+        if (Math.abs(smoothedX) > 0.5 || Math.abs(smoothedY) > 0.5) {
+          setOffset(prev => ({
+            x: prev.x + smoothedX,
+            y: prev.y + smoothedY
+          }));
+        }
+      }
     }
+    
+    // Update last touch position
+    lastTouchPos.current = {
+      x: touch.clientX,
+      y: touch.clientY
+    };
   };
 
   if (isLoading) {
