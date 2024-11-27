@@ -228,6 +228,95 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
     });
   }, [allPixels, offset, zoom, isLoading]);
 
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const handleWheel = (event: WheelEvent) => {
+      if (event.ctrlKey) {
+        // This is likely a pinch-to-zoom gesture
+        event.preventDefault();
+        // Further reduced scale factor for even smoother zooming
+        const scale = event.deltaY > 0 ? 0.985 : 1.015;
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+
+        const newZoom = Math.max(0.1, Math.min(10, zoom * scale));
+
+        if (Math.abs(newZoom - zoom) > 0.001) {
+          setZoom(newZoom);
+
+          // Adjust offset to keep the point under the mouse in the same position
+          const zoomDiff = newZoom - zoom;
+          const newOffset = {
+            x: offset.x + (mouseX * zoomDiff) / newZoom,
+            y: offset.y + (mouseY * zoomDiff) / newZoom,
+          };
+          setOffset(newOffset);
+        }
+      } else {
+        // Regular mouse wheel - handle panning
+        event.preventDefault();
+        setOffset({
+          x: offset.x + event.deltaX,
+          y: offset.y + event.deltaY,
+        });
+      }
+    };
+
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', handleWheel);
+  }, [zoom, offset]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    let initialScale = 1;
+
+    const handleGestureStart = (e: any) => {
+      e.preventDefault();
+      initialScale = zoom;
+    };
+
+    const handleGestureChange = (e: any) => {
+      e.preventDefault();
+      const newZoom = Math.max(0.1, Math.min(10, initialScale * e.scale));
+
+      // Get center of gesture
+      const rect = canvas.getBoundingClientRect();
+      const centerX = e.clientX - rect.left;
+      const centerY = e.clientY - rect.top;
+
+      if (Math.abs(newZoom - zoom) > 0.001) {
+        setZoom(newZoom);
+
+        // Adjust offset to keep the gesture center point in place
+        const zoomDiff = newZoom - zoom;
+        const newOffset = {
+          x: offset.x + (centerX * zoomDiff) / newZoom,
+          y: offset.y + (centerY * zoomDiff) / newZoom,
+        };
+        setOffset(newOffset);
+      }
+    };
+
+    const handleGestureEnd = (e: any) => {
+      e.preventDefault();
+    };
+
+    canvas.addEventListener('gesturestart', handleGestureStart, { passive: false });
+    canvas.addEventListener('gesturechange', handleGestureChange, { passive: false });
+    canvas.addEventListener('gestureend', handleGestureEnd, { passive: false });
+
+    return () => {
+      canvas.removeEventListener('gesturestart', handleGestureStart);
+      canvas.removeEventListener('gesturechange', handleGestureChange);
+      canvas.removeEventListener('gestureend', handleGestureEnd);
+    };
+  }, [zoom, offset]);
+
   const handleCanvasClick = async (
     event: React.MouseEvent<HTMLCanvasElement>,
   ) => {
@@ -315,16 +404,6 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
     setHoveredPixel(null);
   };
 
-  const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
-    event.preventDefault();
-    const newZoom = Math.max(
-      0.1,
-      Math.min(10, zoom * (1 - event.deltaY * 0.001)),
-    );
-    setZoom(newZoom);
-  };
-
-  // Add touch event handlers
   const handleTouchStart = (event: React.TouchEvent<HTMLCanvasElement>) => {
     event.preventDefault(); // Prevent scrolling while touching canvas
     isTouchRef.current = true;
@@ -371,7 +450,7 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
     if (manhattanDistance <= 4) {
       handleCanvasClick({ clientX: touch.clientX, clientY: touch.clientY } as React.MouseEvent<HTMLCanvasElement>);
     }
-    
+
     initialTouchRef.current = null;
     isTouchRef.current = false;
   };
@@ -431,7 +510,6 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
         onMouseUp={handleMouseUp}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        onWheel={handleWheel}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
