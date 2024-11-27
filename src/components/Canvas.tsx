@@ -72,7 +72,10 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
   const initialTouchRef = useRef<{ x: number; y: number } | null>(null);
   const lastTouchDistance = useRef<number | null>(null);
   const lastTouchPos = useRef<{ x: number; y: number } | null>(null);
-  const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null);
+  const [dragStartPos, setDragStartPos] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   // Initialize shapes
   const { data: pixels = [], isLoading } = useShape<Pixel>(pixelShape());
@@ -266,8 +269,8 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
       }
     };
 
-    canvas.addEventListener('wheel', handleWheel, { passive: false });
-    return () => canvas.removeEventListener('wheel', handleWheel);
+    canvas.addEventListener("wheel", handleWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", handleWheel);
   }, [zoom, offset]);
 
   useEffect(() => {
@@ -307,14 +310,18 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
       e.preventDefault();
     };
 
-    canvas.addEventListener('gesturestart', handleGestureStart, { passive: false });
-    canvas.addEventListener('gesturechange', handleGestureChange, { passive: false });
-    canvas.addEventListener('gestureend', handleGestureEnd, { passive: false });
+    canvas.addEventListener("gesturestart", handleGestureStart, {
+      passive: false,
+    });
+    canvas.addEventListener("gesturechange", handleGestureChange, {
+      passive: false,
+    });
+    canvas.addEventListener("gestureend", handleGestureEnd, { passive: false });
 
     return () => {
-      canvas.removeEventListener('gesturestart', handleGestureStart);
-      canvas.removeEventListener('gesturechange', handleGestureChange);
-      canvas.removeEventListener('gestureend', handleGestureEnd);
+      canvas.removeEventListener("gesturestart", handleGestureStart);
+      canvas.removeEventListener("gesturechange", handleGestureChange);
+      canvas.removeEventListener("gestureend", handleGestureEnd);
     };
   }, [zoom, offset]);
 
@@ -430,16 +437,18 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
     // Initialize touch position without any movement
     lastTouchPos.current = {
       x: touch.clientX,
-      y: touch.clientY
+      y: touch.clientY,
     };
 
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const x = Math.floor((touch.clientX - rect.left) / (PIXEL_SIZE * zoom)) +
+    const x =
+      Math.floor((touch.clientX - rect.left) / (PIXEL_SIZE * zoom)) +
       Math.floor(offset.x / (PIXEL_SIZE * zoom));
-    const y = Math.floor((touch.clientY - rect.top) / (PIXEL_SIZE * zoom)) +
+    const y =
+      Math.floor((touch.clientY - rect.top) / (PIXEL_SIZE * zoom)) +
       Math.floor(offset.y / (PIXEL_SIZE * zoom));
 
     initialTouchRef.current = { x, y };
@@ -468,7 +477,10 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
 
     // Allow movement of up to 4 pixels total (using Manhattan distance)
     if (manhattanDistance <= 4) {
-      handleCanvasClick({ clientX: touch.clientX, clientY: touch.clientY } as React.MouseEvent<HTMLCanvasElement>);
+      handleCanvasClick({
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+      } as React.MouseEvent<HTMLCanvasElement>);
     }
 
     initialTouchRef.current = null;
@@ -481,44 +493,68 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
     const touch = event.touches[0];
     if (!touch) return;
 
-    if (event.touches.length === 2) {
-      // Handle pinch zoom
-      const touch1 = event.touches[0];
-      const touch2 = event.touches[1];
-      const dist = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY);
+    // Only handle panning with single touch
+    if (event.touches.length === 1 && lastTouchPos.current) {
+      const movementX = lastTouchPos.current.x - touch.clientX;
+      const movementY = lastTouchPos.current.y - touch.clientY;
 
-      if (lastTouchDistance.current) {
-        const delta = lastTouchDistance.current - dist;
-        const newZoom = Math.max(0.1, Math.min(10, zoom * (1 + delta * 0.01)));
-        setZoom(newZoom);
-      }
-      lastTouchDistance.current = dist;
-    } else {
-      // Handle panning with smoothing
-      if (lastTouchPos.current) {
-        const movementX = lastTouchPos.current.x - touch.clientX;
-        const movementY = lastTouchPos.current.y - touch.clientY;
-        
-        // Apply smoothing factor
-        const smoothingFactor = 0.6;
-        const smoothedX = movementX * smoothingFactor;
-        const smoothedY = movementY * smoothingFactor;
+      // Apply smoothing factor
+      const smoothingFactor = 0.6;
+      const smoothedX = movementX * smoothingFactor;
+      const smoothedY = movementY * smoothingFactor;
 
-        // Only update if movement is significant
-        if (Math.abs(smoothedX) > 0.5 || Math.abs(smoothedY) > 0.5) {
-          setOffset(prev => ({
-            x: prev.x + smoothedX,
-            y: prev.y + smoothedY
-          }));
-        }
+      // Only update if movement is significant
+      if (Math.abs(smoothedX) > 0.5 || Math.abs(smoothedY) > 0.5) {
+        setOffset((prev) => ({
+          x: prev.x + smoothedX,
+          y: prev.y + smoothedY,
+        }));
       }
     }
-    
+
     // Update last touch position
     lastTouchPos.current = {
       x: touch.clientX,
-      y: touch.clientY
+      y: touch.clientY,
     };
+  };
+
+  const handleZoomIn = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const newZoom = Math.min(10, zoom * 1.2);
+    const zoomDiff = newZoom - zoom;
+
+    // Zoom towards center of canvas
+    const rect = canvas.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    setZoom(newZoom);
+    setOffset((prev) => ({
+      x: prev.x + (centerX * zoomDiff) / newZoom,
+      y: prev.y + (centerY * zoomDiff) / newZoom,
+    }));
+  };
+
+  const handleZoomOut = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const newZoom = Math.max(0.1, zoom / 1.2);
+    const zoomDiff = newZoom - zoom;
+
+    // Zoom towards center of canvas
+    const rect = canvas.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    setZoom(newZoom);
+    setOffset((prev) => ({
+      x: prev.x + (centerX * zoomDiff) / newZoom,
+      y: prev.y + (centerY * zoomDiff) / newZoom,
+    }));
   };
 
   if (isLoading) {
@@ -529,11 +565,9 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
     <div
       ref={containerRef}
       style={{
-        position: "absolute",
-        top: "64px", // Leave space for toolbar
-        left: 0,
-        right: 0,
-        bottom: 0,
+        position: "relative",
+        width: "100%",
+        height: "100%",
         overflow: "hidden",
       }}
     >
@@ -548,12 +582,66 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
         onTouchEnd={handleTouchEnd}
         style={{
           cursor: "crosshair",
-          border: "1px solid #ccc",
-          background: "#FFFFFF",
-          display: "block",
-          touchAction: "none", // Prevent browser handling of touch events
         }}
       />
+      {/* Zoom controls */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 20,
+          right: 20,
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+          background: "white",
+          padding: 8,
+          borderRadius: 4,
+          boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+        }}
+      >
+        <button
+          onClick={handleZoomIn}
+          style={{
+            width: 32,
+            height: 32,
+            fontSize: 18,
+            fontWeight: "bold",
+            borderRadius: 4,
+            border: "1px solid #ccc",
+            background: "white",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 0,
+            color: "#333",
+            lineHeight: 1,
+          }}
+        >
+          +
+        </button>
+        <button
+          onClick={handleZoomOut}
+          style={{
+            width: 32,
+            height: 32,
+            fontSize: 18,
+            fontWeight: "bold",
+            borderRadius: 4,
+            border: "1px solid #ccc",
+            background: "white",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 0,
+            color: "#333",
+            lineHeight: 1,
+          }}
+        >
+          −
+        </button>
+      </div>
       {hoveredPixel && (
         <div
           ref={tooltipRef}
