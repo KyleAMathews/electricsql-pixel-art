@@ -72,6 +72,7 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
   const initialTouchRef = useRef<{ x: number; y: number } | null>(null);
   const lastTouchDistance = useRef<number | null>(null);
   const lastTouchPos = useRef<{ x: number; y: number } | null>(null);
+  const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null);
 
   // Initialize shapes
   const { data: pixels = [], isLoading } = useShape<Pixel>(pixelShape());
@@ -362,8 +363,24 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
     }
   };
 
-  const handleMouseDown = () => setIsDragging(true);
-  const handleMouseUp = () => setIsDragging(false);
+  const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    setIsDragging(true);
+    setDragStartPos({ x: event.clientX, y: event.clientY });
+  };
+
+  const handleMouseUp = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    // Only trigger click if the mouse hasn't moved much (not a drag)
+    if (dragStartPos) {
+      const dx = Math.abs(event.clientX - dragStartPos.x);
+      const dy = Math.abs(event.clientY - dragStartPos.y);
+      if (dx < 5 && dy < 5) {
+        handleCanvasClick(event);
+      }
+    }
+    setIsDragging(false);
+    setDragStartPos(null);
+  };
+
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
     if (isDragging) {
       const newOffset = {
@@ -505,7 +522,6 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
     >
       <canvas
         ref={canvasRef}
-        onClick={handleCanvasClick}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onMouseMove={handleMouseMove}
