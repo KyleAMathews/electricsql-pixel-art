@@ -567,7 +567,7 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
       style={{
         position: "relative",
         width: "100%",
-        height: "100%",
+        height: "100dvh",
         overflow: "hidden",
       }}
     >
