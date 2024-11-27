@@ -34,7 +34,7 @@ function saveAuth(userId: string, username: string) {
   );
 }
 
-function loadAuth() {
+export function loadAuth() {
   const auth = localStorage.getItem(STORAGE_KEY);
   if (!auth) return null;
 
