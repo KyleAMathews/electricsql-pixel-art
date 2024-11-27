@@ -416,7 +416,7 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
     const manhattanDistance = xDiff + yDiff;
 
     // Allow movement of up to 4 pixels total (using Manhattan distance)
-    if (manhattanDistance <= 4) {
+    if (manhattanDistance <= 0) {
       const x =
         Math.floor((touch.clientX - rect.left) / (PIXEL_SIZE * zoom)) +
         Math.floor(offset.x / (PIXEL_SIZE * zoom));
