@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useShape, getShapeStream } from "@electric-sql/react";
 import { Pixel, User } from "../types/schema";
-import { pixelShape, userShape } from "../shapes";
+import { Shape, ShapeStreamOptions } from "@electric-sql/client";
 import { matchStream } from "../utils/match-stream";
 import { formatDistanceToNow } from "date-fns";
 import { loadAuth } from "../App";
@@ -19,6 +19,28 @@ interface ViewState {
 }
 
 const STORAGE_KEY = "pixelCanvas_viewState";
+
+const pixelShape = (): ShapeStreamOptions => {
+  return {
+    url: `${import.meta.env.VITE_ELECTRIC_URL}/v1/shape`,
+    table: "pixels",
+    databaseId: import.meta.env.VITE_DATABASE_ID,
+    params: {
+      token: import.meta.env.VITE_ELECTRIC_TOKEN,
+    },
+  };
+};
+
+const userShape = (): ShapeStreamOptions => {
+  return {
+    url: `${import.meta.env.VITE_ELECTRIC_URL}/v1/shape`,
+    table: "users",
+    databaseId: import.meta.env.VITE_DATABASE_ID,
+    params: {
+      token: import.meta.env.VITE_ELECTRIC_TOKEN,
+    },
+  };
+};
 
 function saveViewState(userId: string, state: ViewState) {
   const allStates = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
@@ -610,34 +632,38 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
         //   timeSinceLastPixel,
         //   shouldShow: hoveredPixel && !isTouchRef.current && timeSinceLastPixel > 4000
         // });
-        return hoveredPixel && !isTouchRef.current && timeSinceLastPixel > 4000 && (
-          <div
-            ref={tooltipRef}
-            style={{
-              position: "fixed",
-              left: hoveredPixel.screenX + 10,
-              top: hoveredPixel.screenY + 10,
-              background: "rgba(0,0,0,0.8)",
-              color: "white",
-              padding: "8px",
-              borderRadius: "4px",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-              zIndex: 1000,
-              fontSize: "14px",
-              maxWidth: "200px",
-              wordWrap: "break-word",
-            }}
-          >
-            <div>
-              Created by: {hoveredPixel.user?.username || "Unknown user"}
+        return (
+          hoveredPixel &&
+          !isTouchRef.current &&
+          timeSinceLastPixel > 4000 && (
+            <div
+              ref={tooltipRef}
+              style={{
+                position: "fixed",
+                left: hoveredPixel.screenX + 10,
+                top: hoveredPixel.screenY + 10,
+                background: "rgba(0,0,0,0.8)",
+                color: "white",
+                padding: "8px",
+                borderRadius: "4px",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                zIndex: 1000,
+                fontSize: "14px",
+                maxWidth: "200px",
+                wordWrap: "break-word",
+              }}
+            >
+              <div>
+                Created by: {hoveredPixel.user?.username || "Unknown user"}
+              </div>
+              <div>
+                Last updated:{" "}
+                {formatDistanceToNow(new Date(hoveredPixel.lastUpdated), {
+                  addSuffix: true,
+                })}
+              </div>
             </div>
-            <div>
-              Last updated:{" "}
-              {formatDistanceToNow(new Date(hoveredPixel.lastUpdated), {
-                addSuffix: true,
-              })}
-            </div>
-          </div>
+          )
         );
       })()}
     </div>
