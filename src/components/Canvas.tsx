@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useShape, getShapeStream } from "@electric-sql/react";
 import { Pixel, User } from "../types/schema";
-import { Shape, ShapeStreamOptions } from "@electric-sql/client";
+import { ShapeStreamOptions } from "@electric-sql/client";
 import { matchStream } from "../utils/match-stream";
 import { formatDistanceToNow } from "date-fns";
 import { loadAuth } from "../App";
