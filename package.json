@@ -22,6 +22,7 @@
     "hono": "^4.6.12",
     "postgres": "^3.4.3",
     "react": "canary",
+    "react-aria-components": "^1.5.0",
     "react-dom": "canary",
     "sst": "3.3.30",
     "uuid": "^11.0.3",
