@@ -170,7 +170,7 @@ function App() {
         title="About the Pixel Art ElectricSQL Demo"
       >
         <p className="mb-4">
-          Welcome to Pixel Art demo for <a
+          Welcome to the Pixel Art demo for <a
             href="https://electric-sql.com/">ElectricSQL</a>, a collaborative
           pixel art canvas where users can create art together in real-time.
         </p>
