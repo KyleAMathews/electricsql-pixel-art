@@ -547,7 +547,7 @@ export function Canvas({ userId, selectedColor }: CanvasProps) {
       style={{
         position: "relative",
         width: "100%",
-        height: "100dvh",
+        height: "calc(100dvh - 64px)", // Subtract toolbar height
         overflow: "hidden",
       }}
     >
