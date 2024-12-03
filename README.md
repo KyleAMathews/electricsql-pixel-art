@@ -1,50 +1,49 @@
-# Pixel Art demo for ElectricSQL
+# Pixel Art ElectricSQL Demo
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Welcome to the Pixel Art demo for [ElectricSQL](https://electric-sql.com/), a collaborative pixel art canvas where users can create art together in real-time.
 
-Currently, two official plugins are available:
+ElectricSQL provides seamless real-time data synchronization between Postgres tables and the game. You simply define your data structures in Postgres and then start syncing into the app.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Database Schema
 
-## Expanding the ESLint configuration
+The pixel data is stored in the following Postgres table:
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
-
-- Configure the top-level `parserOptions` property like this:
-
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+```sql
+CREATE TABLE pixels (
+    x integer NOT NULL,
+    y integer NOT NULL,
+    color text NOT NULL,
+    user_id uuid,
+    last_updated timestamptz DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pixels_pkey PRIMARY KEY (x, y),
+    CONSTRAINT valid_color CHECK (color ~ '^#[0-9a-fA-F]{6}$'),
+    CONSTRAINT valid_coordinates CHECK (x >= -2147483648 AND x <= 2147483647 
+        AND y >= -2147483648 AND y <= 2147483647),
+    CONSTRAINT pixels_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id)
+);
 ```
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+And loaded with the [`useShape`](https://electric-sql.com/docs/integrations/react) hook:
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
-
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
+```typescript
+const { data: pixels } = useShape({ url, table: 'pixels' })
 ```
+
+That's all you need for real-time syncing from Postgres that scales to millions!
+
+## Features
+
+- Real-time collaborative pixel art canvas
+- Simple username-based authentication
+- Infinite canvas with zoom and pan controls
+- Pixel history tracking with user attribution
+- Mobile-friendly touch controls
+
+## Development
+
+Currently it's not very easy to run this yourself locally... file an issue if
+you're interested and I'll work on improving this.
+
+## License
+
+MIT
