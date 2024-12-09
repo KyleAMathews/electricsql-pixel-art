@@ -63,7 +63,7 @@ function deploySite(
 ) {
   return new sst.aws.StaticSite("game-app", {
     domain: {
-      name: `pixel-art${$app.stage === `production` ? `` : `-stage-${$app.stage}`}.electric-sql.com`,
+      name: `pixel-art.examples${$app.stage === `production` ? `` : `-stage-${$app.stage}`}.electric-sql.com`,
       dns: sst.cloudflare.dns(),
     },
     dev: {
