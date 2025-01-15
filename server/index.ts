@@ -32,7 +32,7 @@ app.post("/api/users", zValidator("json", userSchema), async (c) => {
     const { id, username, pixels_placed, last_active, created_at } = c.req.valid("json");
     
     // Create a new postgres client for each request
-    const sql = postgres(Resource.databaseUriLink.url);
+    const sql = postgres(Resource.databaseUriLink.pooledUrl);
     
     const user = await sql`
       INSERT INTO users (id, username, pixels_placed, last_active, created_at)
@@ -68,7 +68,7 @@ app.post("/api/pixels", zValidator("json", pixelSchema), async (c) => {
     const { x, y, color, user_id, last_updated } = c.req.valid("json");
     
     // Create a new postgres client for each request
-    const sql = postgres(Resource.databaseUriLink.url);
+    const sql = postgres(Resource.databaseUriLink.pooledUrl);
     
     // Using upsert (INSERT ... ON CONFLICT DO UPDATE)
     const pixel = await sql`

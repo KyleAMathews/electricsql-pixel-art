@@ -37,6 +37,7 @@ export default $config({
 
       return {
         databaseUri: databaseUri.properties.url,
+        pooled: databaseUri.properties.pooledUrl,
         ...electricInfo.properties,
         website: website.url,
         api: worker.url,

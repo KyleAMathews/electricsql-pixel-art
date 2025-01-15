@@ -11,6 +11,7 @@ declare module "sst" {
       "url": string
     }
     "databaseUriLink": {
+      "pooledUrl": string
       "type": "sst.sst.Linkable"
       "url": string
     }
