@@ -23,8 +23,8 @@ const STORAGE_KEY = "pixelCanvas_viewState";
 const pixelShape = (): ShapeStreamOptions => {
   return {
     url: `${import.meta.env.VITE_ELECTRIC_URL}/v1/shape`,
-    table: "pixels",
     params: {
+      table: "pixels",
       source_id: import.meta.env.VITE_SOURCE_ID,
       token: import.meta.env.VITE_ELECTRIC_TOKEN,
     },
@@ -34,8 +34,8 @@ const pixelShape = (): ShapeStreamOptions => {
 const userShape = (): ShapeStreamOptions => {
   return {
     url: `${import.meta.env.VITE_ELECTRIC_URL}/v1/shape`,
-    table: "users",
     params: {
+      table: "users",
       source_id: import.meta.env.VITE_SOURCE_ID,
       token: import.meta.env.VITE_ELECTRIC_TOKEN,
     },
