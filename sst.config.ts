@@ -59,7 +59,7 @@ function applyMigrations(uri: string) {
 }
 
 function deploySite(
-  electricInfo: sst.Linkable<{ database_id: string; token: string }>,
+  electricInfo: sst.Linkable<{ source_id: string; token: string }>,
   worker: sst.cloudflare.Worker,
 ) {
   return new sst.aws.StaticSite("game-app", {
@@ -76,7 +76,7 @@ function deploySite(
     },
     environment: {
       VITE_ELECTRIC_TOKEN: electricInfo.properties.token,
-      VITE_DATABASE_ID: electricInfo.properties.database_id,
+      VITE_SOURCE_ID: electricInfo.properties.source_id,
       VITE_ELECTRIC_URL: process.env.ELECTRIC_URL,
       VITE_API_URL: worker.url as unknown as string,
     },

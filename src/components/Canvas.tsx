@@ -24,8 +24,8 @@ const pixelShape = (): ShapeStreamOptions => {
   return {
     url: `${import.meta.env.VITE_ELECTRIC_URL}/v1/shape`,
     table: "pixels",
-    databaseId: import.meta.env.VITE_DATABASE_ID,
     params: {
+      source_id: import.meta.env.VITE_SOURCE_ID,
       token: import.meta.env.VITE_ELECTRIC_TOKEN,
     },
   };
@@ -35,8 +35,8 @@ const userShape = (): ShapeStreamOptions => {
   return {
     url: `${import.meta.env.VITE_ELECTRIC_URL}/v1/shape`,
     table: "users",
-    databaseId: import.meta.env.VITE_DATABASE_ID,
     params: {
+      source_id: import.meta.env.VITE_SOURCE_ID,
       token: import.meta.env.VITE_ELECTRIC_TOKEN,
     },
   };

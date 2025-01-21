@@ -20,7 +20,7 @@ declare module "sst" {
       "url": string
     }
     "electricInfo": {
-      "database_id": string
+      "source_id": string
       "token": string
       "type": "sst.sst.Linkable"
     }

@@ -20,7 +20,7 @@ export function createExampleDbAndAddtoElectric({ name }: { name: string }) {
 
   const electricInfoLink = new sst.Linkable(`electricInfo`, {
     properties: {
-      database_id: electricInfo.id,
+      source_id: electricInfo.id,
       token: electricInfo.token,
     },
   });
@@ -56,12 +56,13 @@ async function addDatabaseToElectric(
 ): Promise<{ id: string; token: string }> {
   const adminApi = `https://admin-api-dev-production.electric-sql.com`;
 
-  const result = await fetch(`${adminApi}/v1/databases`, {
+  const result = await fetch(`${adminApi}/v1/sources`, {
     method: `PUT`,
     headers: { "Content-Type": `application/json` },
     body: JSON.stringify({
       database_url: uri,
       region: `us-east-1`,
+      team_id: `d2c34c12-a9c3-4f89-9e9c-c234fd5c3f89`
     }),
   });
 
